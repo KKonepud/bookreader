@@ -1,0 +1,141 @@
+// Dictionary popup — styles for <br-dictionary-popup> web component
+
+.br-dictionary-popup {
+  position: fixed;
+  z-index: $brZindexPopup;
+  min-width: 240px;
+  max-width: 360px;
+
+  background: $white;
+  border: 1px solid $brColorLightBorder;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+
+  font-family: $brFontFamily;
+  font-size: $brFontSizeBase;
+  color: $gray13;
+
+  // ── Header row ──────────────────────────────────────────
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid $gray80;
+  }
+
+  &__word {
+    margin: 0;
+    font-size: $brFontSizeLarger;
+    font-weight: bold;
+    line-height: 1.3;
+  }
+
+  &__close {
+    flex-shrink: 0;
+    margin-left: 12px;
+    padding: 2px 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    color: $gray40;
+
+    &:hover {
+      color: $gray13;
+    }
+  }
+
+  // ── Body ────────────────────────────────────────────────
+  &__body {
+    padding: 10px 14px 12px;
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  // ── Detected language line ───────────────────────────────
+  &__detected-lang {
+    margin: 0;
+    font-size: $brFontSizeSmaller;
+    color: $gray40;
+  }
+
+  // ── Language selector ────────────────────────────────────
+  &__lang-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: $brFontSizeSmaller;
+
+    label {
+      white-space: nowrap;
+      color: $gray40;
+    }
+
+    select {
+      flex: 1;
+      padding: 2px 4px;
+      border: 1px solid $brColorLightBorder;
+      border-radius: 3px;
+      font-size: $brFontSizeSmaller;
+      background: $white;
+      color: $gray13;
+      cursor: pointer;
+    }
+  }
+
+  // ── Loading state ────────────────────────────────────────
+  &__loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: $brFontSizeSmaller;
+    color: $gray40;
+    padding: 4px 0;
+  }
+
+  &__spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid $gray80;
+    border-top-color: $gray40;
+    border-radius: 50%;
+    animation: br-dict-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes br-dict-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  // ── Translation / Definition sections ───────────────────
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__label {
+    font-size: $brFontSizeSmaller;
+    font-weight: 600;
+    color: $gray40;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__value {
+    font-size: $brFontSizeBase;
+    color: $gray13;
+    line-height: 1.4;
+
+    &--definition {
+      font-size: $brFontSizeSmaller;
+      color: $gray40;
+      font-style: italic;
+    }
+  }
+}

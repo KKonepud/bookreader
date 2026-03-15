@@ -678,6 +678,9 @@ export class Mode2UpLit extends LitElement {
 
     if (ev.which != 1) return;
 
+    // Don't navigate when clicking on text — user is selecting or looking up words
+    if (/** @type {Element} */(ev.target).closest('.BRtextLayer')) return;
+
     const $page = $(ev.target).closest('.BRpagecontainer');
     if (!$page.length) return;
     if ($page.data('side') == 'L') {
@@ -775,6 +778,9 @@ export class LeafEdges extends LitElement {
    * @param {MouseEvent} e
    */
   onClick = (e) => {
+    // Don't navigate if the click originated from a text layer element —
+    // the user is interacting with text (selecting, dictionary lookup), not navigating.
+    if (/** @type {Element} */(e.target).closest('.BRtextLayer')) return;
     this.pageClickHandler(this.mouseEventToPageIndex(e));
   }
 
