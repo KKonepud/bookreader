@@ -13,6 +13,9 @@ function detectLangLocally(text) {
   // Cyrillic block — assume Ukrainian (covers uk/ru; good enough for this app)
   if (/[\u0400-\u04FF]/.test(t)) return 'uk';
 
+  // Japanese: Hiragana, Katakana, or CJK Unified Ideographs
+  if (/[\u3040-\u30FF\u4E00-\u9FFF]/.test(t)) return 'ja';
+
   // Count language-specific Latin characters
   const deChars = (t.match(/[äöüÄÖÜß]/g) || []).length;
   const frChars = (t.match(/[àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ]/g) || []).length;
@@ -82,5 +85,49 @@ export class DictionaryService {
     const rawHtml = data?.en?.[0]?.definitions?.[0]?.definition ?? '';
     // Strip HTML tags to get plain text
     return rawHtml.replace(/<[^>]+>/g, '').trim();
+  }
+
+  /**
+   * Fetch an English definition from Wiktionary and translate it into the target language.
+   *
+   * Workflow:
+   *  1. If the source word is not English, translate it to English first (needed for
+   *     Wiktionary which only has an English REST endpoint).
+   *  2. Look up the English definition via Wiktionary.
+   *  3. If targetLang !== 'en', translate the definition text via MyMemory.
+   *
+   * Supports uk, en, de, fr, es, pl, ja (and any other language MyMemory handles).
+   * Returns '' when no definition is found or any step fails.
+   *
+   * @param {string} word        The word to define (in its original language)
+   * @param {string} sourceLang  ISO 639-1 code of the word's language
+   * @param {string} targetLang  ISO 639-1 code of the desired output language
+   * @returns {Promise<string>}
+   */
+  async getDefinitionInLanguage(word, sourceLang, targetLang) {
+    // Step 1: get the English spelling of the word for the Wiktionary lookup
+    let englishWord = word;
+    if (sourceLang !== 'en') {
+      try {
+        englishWord = await this.translate(word, sourceLang, 'en');
+      } catch {
+        // If translation to English fails, try the original word directly
+        englishWord = word;
+      }
+    }
+
+    // Step 2: fetch English definition from Wiktionary
+    const definition = await this.getDefinition(englishWord);
+    if (!definition) return '';
+
+    // Step 3: translate the definition into the target language via MyMemory
+    if (targetLang === 'en') return definition;
+
+    try {
+      return await this.translate(definition, 'en', targetLang);
+    } catch {
+      // Fallback: return the English definition rather than nothing
+      return definition;
+    }
   }
 }

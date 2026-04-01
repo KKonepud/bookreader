@@ -9,6 +9,7 @@ const LANGUAGES = [
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
   { code: 'pl', label: 'Polski' },
+  { code: 'ja', label: '日本語' },
 ];
 
 @customElement('br-dictionary-popup')

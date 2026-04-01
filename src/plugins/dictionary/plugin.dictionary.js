@@ -137,16 +137,20 @@ export class DictionaryPlugin extends BookReaderPlugin {
       const detectedLang = await this.dictionaryService.detectLanguage(word);
       this._popup.detectedLang = detectedLang;
 
-      // Тут треба змінити, щоб визначення показувалось не лише для англ слів !!!!!
+      // getDefinitionInLanguage handles all source languages:
+      // it translates the word to English for the Wiktionary lookup if needed,
+      // then translates the resulting definition into targetLang via MyMemory.
       const [translation, definition] = await Promise.all([
         this.dictionaryService.translate(
           word,
           detectedLang,
           this._popup.targetLang,
         ),
-        detectedLang === "en"
-          ? this.dictionaryService.getDefinition(word)
-          : Promise.resolve(""),
+        this.dictionaryService.getDefinitionInLanguage(
+          word,
+          detectedLang,
+          this._popup.targetLang,
+        ),
       ]);
 
       this._popup.translation = translation;
@@ -172,21 +176,16 @@ export class DictionaryPlugin extends BookReaderPlugin {
 
     this._popup.loading = true;
     this._popup.translation = "";
+    this._popup.definition = "";
 
     try {
-      const translation = await this.dictionaryService.translate(
-        word,
-        detectedLang,
-        targetLang,
-      );
+      // Re-translate both the word and its definition into the newly selected language
+      const [translation, definition] = await Promise.all([
+        this.dictionaryService.translate(word, detectedLang, targetLang),
+        this.dictionaryService.getDefinitionInLanguage(word, detectedLang, targetLang),
+      ]);
       this._popup.translation = translation;
-      // Re-fetch definition only if source is English and target is English
-      if (detectedLang === "en" && targetLang === "en") {
-        this._popup.definition =
-          await this.dictionaryService.getDefinition(word);
-      } else if (detectedLang !== "en") {
-        this._popup.definition = "";
-      }
+      this._popup.definition = definition;
     } catch (err) {
       console.error("[BookReader Dictionary]", err);
       this._popup.translation = "⚠ Помилка перекладу";
