@@ -1,4 +1,46 @@
-// Dictionary popup — styles for <br-dictionary-popup> web component
+// ── Toolbar language selector ────────────────────────────────────────────────
+
+.BRtoolbarSection--dict-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+.br-dict-toolbar__label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.br-dict-toolbar__select {
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: $white;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+
+  option {
+    background: $gray20;
+    color: $white;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &:focus {
+    border-color: $white;
+  }
+}
+
+// ── Dictionary popup — styles for <br-dictionary-popup> web component ───────
 
 .br-dictionary-popup {
   position: fixed;

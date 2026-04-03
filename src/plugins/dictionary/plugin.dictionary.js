@@ -1,9 +1,11 @@
 // @ts-check
 import { BookReaderPlugin } from "../../BookReaderPlugin.js";
 import { DictionaryService } from "./DictionaryService.js";
-import "./DictionaryPopup.js";
+import { LANGUAGES } from "./DictionaryPopup.js";
 
 /** @typedef {import('../../BookReader/PageContainer.js').PageContainer} PageContainer */
+
+const STORAGE_KEY = 'br-dictionary-targetLang';
 
 const BookReader = /** @type {typeof import('../../BookReader.js').default} */ (
   window.BookReader
@@ -22,6 +24,9 @@ export class DictionaryPlugin extends BookReaderPlugin {
   /** @type {import('./DictionaryPopup.js').DictionaryPopup | null} */
   _popup = null;
 
+  /** @type {HTMLSelectElement | null} */
+  _toolbarSelect = null;
+
   init() {
     if (!this.options.enabled) return;
 
@@ -31,6 +36,56 @@ export class DictionaryPlugin extends BookReaderPlugin {
     this._attachGlobalHandlers();
   }
 
+  /** @param {JQuery} $toolbar */
+  _configureToolbar($toolbar) {
+    if (!this.options.enabled) return;
+
+    // Restore previously saved language preference
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) this.options.defaultTargetLang = saved;
+
+    const section = document.createElement('span');
+    section.className = 'BRtoolbarSection BRtoolbarSection--dict-lang';
+
+    const label = document.createElement('label');
+    label.className = 'br-dict-toolbar__label';
+    label.htmlFor = 'br-dict-toolbar-lang';
+    label.textContent = 'Переклад:';
+
+    const select = document.createElement('select');
+    select.id = 'br-dict-toolbar-lang';
+    select.className = 'br-dict-toolbar__select';
+    select.title = 'Мова перекладу';
+
+    for (const lang of LANGUAGES) {
+      const option = document.createElement('option');
+      option.value = lang.code;
+      option.textContent = lang.label;
+      if (lang.code === this.options.defaultTargetLang) option.selected = true;
+      select.appendChild(option);
+    }
+
+    select.addEventListener('change', () => {
+      const lang = select.value;
+      localStorage.setItem(STORAGE_KEY, lang);
+      if (this._popup) {
+        this._popup.targetLang = lang;
+        if (this._popup.visible && this._popup.word) {
+          this._retranslate(lang);
+        }
+      }
+    });
+
+    section.appendChild(label);
+    section.appendChild(select);
+    this._toolbarSelect = select;
+
+    // Insert at the beginning of the right toolbar section
+    const toolbarEl = /** @type {HTMLElement} */ ($toolbar[0] ?? $toolbar);
+    const right = toolbarEl.querySelector('.BRtoolbarRight') ?? toolbarEl;
+    right.prepend(section);
+  }
+
   _createPopup() {
     this._popup = /** @type {any} */ (
       document.createElement("br-dictionary-popup")
@@ -38,11 +93,15 @@ export class DictionaryPlugin extends BookReaderPlugin {
     this._popup.targetLang = this.options.defaultTargetLang;
     document.body.appendChild(this._popup);
 
-    // Re-translate when user picks a different language
+    // Re-translate when user picks a different language in the popup
     this._popup.addEventListener(
       "br-dictionary-lang-change",
       (/** @type {CustomEvent} */ e) => {
-        this._retranslate(e.detail.targetLang);
+        const lang = e.detail.targetLang;
+        this._retranslate(lang);
+        // Keep toolbar selector in sync
+        if (this._toolbarSelect) this._toolbarSelect.value = lang;
+        localStorage.setItem(STORAGE_KEY, lang);
       },
     );
   }

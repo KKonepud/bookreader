@@ -2,7 +2,7 @@
 import { html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-const LANGUAGES = [
+export const LANGUAGES = [
   { code: 'uk', label: 'Українська' },
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch' },

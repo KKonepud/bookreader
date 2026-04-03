@@ -1,6 +1,13 @@
 // @ts-check
 
 /**
+ * Public Lingva Translate instance used for translation.
+ * Lingva is an open-source Google Translate front-end — no API key required.
+ * If this instance is down, replace with another from the Lingva public list.
+ */
+const LINGVA_BASE = 'https://lingva.ml';
+
+/**
  * Heuristic language detection based on Unicode character ranges.
  * Covers the languages supported in the popup: uk, en, de, fr, es, pl.
  * Good enough for demo/development; replace with an API call for production.
@@ -43,9 +50,8 @@ export class DictionaryService {
   }
 
   /**
-   * Translate text via MyMemory (free, no API key required).
-   * Limit: ~1 000 words/day per IP; enough for demo use.
-   * Returns original text unchanged if source === target.
+   * Translate text via Lingva Translate (open-source Google Translate front-end).
+   * No API key required. Returns original text unchanged if source === target.
    * @param {string} text
    * @param {string} sourceLang  ISO 639-1 code
    * @param {string} targetLang  ISO 639-1 code
@@ -54,49 +60,61 @@ export class DictionaryService {
   async translate(text, sourceLang, targetLang) {
     if (sourceLang === targetLang) return text;
 
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+    const url = `${LINGVA_BASE}/api/v1/${sourceLang}/${targetLang}/${encodeURIComponent(text)}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`MyMemory request failed (${res.status})`);
+    if (!res.ok) throw new Error(`Lingva request failed (${res.status})`);
 
     const data = await res.json();
+    if (!data.translation) throw new Error('Lingva: порожня відповідь');
 
-    // responseStatus 200 = OK, 429 = daily limit exceeded
-    if (data.responseStatus === 429) {
-      throw new Error('MyMemory: денний ліміт запитів вичерпано');
-    }
-    if (data.responseStatus !== 200) {
-      throw new Error(`MyMemory error: ${data.responseDetails ?? data.responseStatus}`);
-    }
-
-    return data.responseData?.translatedText ?? '';
+    return data.translation;
   }
 
   /**
-   * Fetch an English definition from Wiktionary.
-   * Works best for single English words; returns '' for unknown words.
+   * Fetch an English definition from the Free Dictionary API (dictionaryapi.dev).
+   * Works for single English words; returns '' for unknown words.
+   * Returns the first meaningful definition with part of speech.
    * @param {string} word
    * @returns {Promise<string>}
    */
   async getDefinition(word) {
-    const url = `https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word.toLowerCase())}`;
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`;
     const res = await fetch(url);
     if (!res.ok) return '';
+
     const data = await res.json();
-    const rawHtml = data?.en?.[0]?.definitions?.[0]?.definition ?? '';
-    // Strip HTML tags to get plain text
-    return rawHtml.replace(/<[^>]+>/g, '').trim();
+    if (!Array.isArray(data) || !data.length) return '';
+
+    const POS_PRIORITY = ['noun', 'verb', 'adjective', 'adverb', 'preposition',
+      'conjunction', 'interjection', 'particle', 'phrase', 'idiom'];
+
+    const allMeanings = data.flatMap(entry => entry.meanings ?? []);
+
+    let meaning = null;
+    for (const pos of POS_PRIORITY) {
+      meaning = allMeanings.find(m => m.partOfSpeech?.toLowerCase() === pos) ?? null;
+      if (meaning) break;
+    }
+    if (!meaning) meaning = allMeanings[0] ?? null;
+    if (!meaning) return '';
+
+    const def = meaning.definitions?.[0];
+    if (!def) return '';
+
+    const pos = meaning.partOfSpeech ? `(${meaning.partOfSpeech}) ` : '';
+    const example = def.example ? ` — "${def.example}"` : '';
+    return `${pos}${def.definition}${example}`;
   }
 
   /**
-   * Fetch an English definition from Wiktionary and translate it into the target language.
+   * Fetch an English definition and translate it into the target language.
    *
    * Workflow:
-   *  1. If the source word is not English, translate it to English first (needed for
-   *     Wiktionary which only has an English REST endpoint).
-   *  2. Look up the English definition via Wiktionary.
-   *  3. If targetLang !== 'en', translate the definition text via MyMemory.
+   *  1. If the source word is not English, translate it to English first (for
+   *     the Free Dictionary API which only covers English words).
+   *  2. Look up the English definition via Free Dictionary API.
+   *  3. If targetLang !== 'en', translate the definition text via Lingva.
    *
-   * Supports uk, en, de, fr, es, pl, ja (and any other language MyMemory handles).
    * Returns '' when no definition is found or any step fails.
    *
    * @param {string} word        The word to define (in its original language)
@@ -105,22 +123,21 @@ export class DictionaryService {
    * @returns {Promise<string>}
    */
   async getDefinitionInLanguage(word, sourceLang, targetLang) {
-    // Step 1: get the English spelling of the word for the Wiktionary lookup
+    // Step 1: get the English spelling of the word for the dictionary lookup
     let englishWord = word;
     if (sourceLang !== 'en') {
       try {
         englishWord = await this.translate(word, sourceLang, 'en');
       } catch {
-        // If translation to English fails, try the original word directly
         englishWord = word;
       }
     }
 
-    // Step 2: fetch English definition from Wiktionary
+    // Step 2: fetch English definition from Free Dictionary API
     const definition = await this.getDefinition(englishWord);
     if (!definition) return '';
 
-    // Step 3: translate the definition into the target language via MyMemory
+    // Step 3: translate the definition into the target language via Lingva
     if (targetLang === 'en') return definition;
 
     try {
