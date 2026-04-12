@@ -7,9 +7,8 @@ import { LANGUAGES } from "./DictionaryPopup.js";
 
 const STORAGE_KEY = 'br-dictionary-targetLang';
 
-const BookReader = /** @type {typeof import('../../BookReader.js').default} */ (
-  window.BookReader
-);
+/** @type {typeof import('../../BookReader.js').default} */
+const BookReader = /** @type {any} */ (window).BookReader;
 
 export class DictionaryPlugin extends BookReaderPlugin {
   options = {
@@ -172,7 +171,7 @@ export class DictionaryPlugin extends BookReaderPlugin {
   async _showPopup(word, rect) {
     if (!this._popup) return;
 
-    const popupWidth = 280;
+    const popupWidth = 340;
     const popupEstimatedHeight = 220;
     const x = Math.min(rect.left, window.innerWidth - popupWidth - 16);
     const yBelow = rect.bottom + 8;
@@ -257,7 +256,7 @@ export class DictionaryPlugin extends BookReaderPlugin {
   _onDocumentPointerDown = (e) => {
     if (!this._popup?.visible) return;
     // Keep the popup open if the user is pressing inside it
-    if (this._popup.contains(/** @type {Node} */ (e.target))) return;
+    if (this._popup.contains(/** @type {Node} */(e.target))) return;
     // Also keep open when the user presses inside the shadow DOM of the popup
     if (e.composedPath().some((el) => el === this._popup)) return;
     this._popup.visible = false;
