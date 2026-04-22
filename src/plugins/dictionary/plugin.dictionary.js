@@ -260,12 +260,14 @@ export class DictionaryPlugin extends BookReaderPlugin {
     // Also keep open when the user presses inside the shadow DOM of the popup
     if (e.composedPath().some((el) => el === this._popup)) return;
     this._popup.visible = false;
+    window.speechSynthesis?.cancel();
   };
 
   /** @param {KeyboardEvent} e */
   _onKeyDown = (e) => {
     if (e.key === "Escape" && this._popup) {
       this._popup.visible = false;
+      window.speechSynthesis?.cancel();
     }
   };
 }

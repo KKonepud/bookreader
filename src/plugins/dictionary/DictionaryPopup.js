@@ -1,6 +1,6 @@
 // @ts-check
 import { html, LitElement } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 export const LANGUAGES = [
   { code: 'uk', label: 'Українська' },
@@ -42,6 +42,9 @@ export class DictionaryPopup extends LitElement {
 
   /** True while the service call is in flight */
   @property({ type: Boolean }) loading = false;
+
+  /** True while the translation is being spoken */
+  @state() _speakingTranslation = false;
 
   createRenderRoot() {
     return this;
@@ -100,8 +103,8 @@ export class DictionaryPopup extends LitElement {
           </div>
 
           <div class="br-dictionary-popup__source-row">
-            <span id="br-dict-word" class="br-dictionary-popup__source-word">${this.word}</span>
-          </div>
+              <span id="br-dict-word" class="br-dictionary-popup__source-word">${this.word}</span>
+            </div>
 
           ${this.loading ? html`
             <div class="br-dictionary-popup__loading" aria-live="polite">
@@ -115,11 +118,11 @@ export class DictionaryPopup extends LitElement {
                 <div class="br-dictionary-popup__translation-row">
                   <span class="br-dictionary-popup__value">${this.translation || '—'}</span>
                   <button
-                    type="button"
-                    class="br-dictionary-popup__mic-stub"
-                    @click="${this._onSpeakTranslation}"
-                    aria-label="Озвучити переклад"
-                    title="Озвучити переклад"
+                      type="button"
+                      class="br-dictionary-popup__mic-stub"
+                      @click="${this._onSpeakTranslation}"
+                      aria-label="Озвучити переклад"
+                      title="Озвучити переклад"
                   >
                     ${micIcon}
                   </button>
@@ -140,7 +143,21 @@ export class DictionaryPopup extends LitElement {
     `;
   }
 
+  _getBestVoice(langCode) {
+    if (!langCode) return null;
+
+    const lang = langCode.toLowerCase();
+    const voices = window.speechSynthesis?.getVoices() ?? [];
+
+    return (
+      voices.find(v => v.lang?.toLowerCase() === lang) ??
+      voices.find(v => v.lang?.toLowerCase().startsWith(lang + '-')) ??
+      null
+    );
+  }
+
   _close() {
+    window.speechSynthesis?.cancel();
     this.visible = false;
     window.getSelection()?.removeAllRanges();
     this.dispatchEvent(new CustomEvent('br-dictionary-close', { bubbles: true }));
@@ -148,11 +165,36 @@ export class DictionaryPopup extends LitElement {
 
   /** Озвучити переклад цільовою мовою (заглушка Web Speech API) */
   _onSpeakTranslation() {
+    if (this._speakingTranslation) {
+      window.speechSynthesis?.cancel();
+      this._speakingTranslation = false;
+      return;
+    }
+
     const text = (this.translation || '').trim();
     if (!text || text === '—') return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = this.targetLang || 'uk';
+
     window.speechSynthesis?.cancel();
+    this._speakingTranslation = false;
+
+    const lang = this.targetLang || 'uk';
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+
+    const voice = this._getBestVoice(lang);
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onend = () => {
+      this._speakingTranslation = false;
+    };
+
+    utterance.onerror = () => {
+      this._speakingTranslation = false;
+    };
+
+    this._speakingTranslation = true;
     window.speechSynthesis?.speak(utterance);
   }
 
